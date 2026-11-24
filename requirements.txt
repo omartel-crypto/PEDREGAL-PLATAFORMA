@@ -1,0 +1,7 @@
+pandas
+openpyxl
+duckdb>=2.0
+streamlit>=1.40
+folium>=0.15
+streamlit-folium>=0.20
+plotly>=5

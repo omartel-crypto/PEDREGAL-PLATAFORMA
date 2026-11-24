@@ -285,6 +285,10 @@ def descarte_bayas(desc, peso_df, limp_df, grupos=None):
     det["defecto"] = det["columna"].map(nombre_defecto)
     det["grupo"] = det["columna"].map(lambda c: grupos.get(c) or grupo_por_defecto(c))
     out.update(base=base, detalle=det.sort_values("pct", ascending=False).reset_index(drop=True))
+    for col, k in (("n-bayas-buenas", "buenas"), ("desgrane-de-bayas", "desgrane")):
+        if col in desc:
+            p = pd.to_numeric(desc[col], errors="coerce").mean()
+            out[k] = (p, p / base * 100) if pd.notna(p) else None
     return out
 
 

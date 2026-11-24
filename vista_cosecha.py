@@ -1340,6 +1340,16 @@ def vista_desc_bayas(lote_id):
                    "jaba (limpieza) de este lote.")
         return
     det = r["detalle"][r["detalle"]["pct"] > 0]
+    extra = []
+    if r.get("buenas"):
+        extra.append(("Bayas buenas", f"{r['buenas'][1]:.2f}%", f"{r['buenas'][0]:.1f} bayas buenas por jaba ÷ {r['base']:,.0f}", VERDE, "check"))
+    if r.get("desgrane"):
+        extra.append(("Desgrane", f"{r['desgrane'][1]:.2f}%", f"{r['desgrane'][0]:.1f} bayas por jaba ÷ {r['base']:,.0f}", AMBAR, "bayas"))
+    if not det.empty:
+        extra.append(("Defectos (suma)", f"{det['pct'].sum():.2f}%", f"{det['prom_jaba'].sum():.1f} bayas con defecto por jaba", ROJO_V, "alerta"))
+    if extra:
+        band("Resumen sobre las bayas por jaba del lote", "cada % = promedio por jaba ÷ bayas por jaba del lote")
+        tiles(extra)
     band("% de cada defecto", "promedio por jaba del defecto ÷ bayas por jaba del lote")
     if det.empty:
         html("<div class='nota'>Sin defectos registrados.</div>")

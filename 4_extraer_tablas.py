@@ -22,7 +22,7 @@ import sys
 import traceback
 
 DSN = "pedregal"
-DB = os.path.join("datos", "pedregal.duckdb")
+DB = os.environ.get("PEDREGAL_DB") or os.path.join("datos", "pedregal.duckdb")   # en linea se trabaja sobre una copia
 CONFIG = "config_tablas.xlsx"
 LOG = "resumen_tablas.txt"
 lineas = []

@@ -38,6 +38,62 @@ AZUL = "#7aa2ff"      # azul de % Brotacion (claro para el fondo oscuro)
 GRIS = "#a89c97"
 
 st.set_page_config(page_title="El Pedregal", page_icon="🍇", layout="wide")
+
+
+# ---------------------------------------------------------------- actualizacion automatica (solo en linea)
+# En Streamlit Cloud, si en Secrets estan las claves de Athena (ATHENA_KEY, ATHENA_SECRET, ATHENA_REGION, ATHENA_S3),
+# cada hora se bajan los datos nuevos de Pedregal en segundo plano. En la laptop se sigue usando el boton.
+CADA_SEG = 3600
+
+
+@st.cache_resource
+def _auto_estado():
+    return {"corriendo": False, "ultimo": 0.0, "ok": None, "msg": ""}
+
+
+def _auto_actualizar():
+    import subprocess
+    import sys
+    import threading
+    import time
+    if os.name == "nt" or not (os.environ.get("ATHENA_KEY") and os.environ.get("ATHENA_SECRET")):
+        return None
+    est = _auto_estado()
+    if est["corriendo"] or time.time() - est["ultimo"] < CADA_SEG:
+        return est
+
+    def trabajo():
+        import shutil
+        tmp = DB + ".nuevo"
+        try:
+            if os.path.exists(DB):
+                shutil.copyfile(DB, tmp)          # se trabaja en una copia: la plataforma sigue leyendo la actual
+            env = dict(os.environ, PEDREGAL_DB=tmp)
+            r = subprocess.run([sys.executable, "4_extraer_tablas.py"], env=env, capture_output=True, text=True, timeout=1800)
+            txt = (r.stdout or "") + (r.stderr or "")
+            ok = txt.count("  OK ")
+            if ok and os.path.exists(tmp):
+                os.replace(tmp, DB)               # cambio instantaneo a la base nueva
+                est["ok"], est["msg"] = True, f"{ok} tablas"
+            else:
+                est["ok"], est["msg"] = False, (txt.strip().splitlines() or ["sin respuesta"])[-1][:160]
+        except Exception as e:
+            est["ok"], est["msg"] = False, str(e)[:160]
+        finally:
+            est["ultimo"] = time.time()
+            est["corriendo"] = False
+            if os.path.exists(tmp):
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+
+    est["corriendo"] = True
+    threading.Thread(target=trabajo, daemon=True).start()
+    return est
+
+
+AUTO = _auto_actualizar()
 # cambio de nivel pedido por un boton en la corrida anterior (se aplica antes de crear el selector)
 if "nivel_pendiente" in st.session_state:
     st.session_state["nivel"] = st.session_state.pop("nivel_pendiente")
@@ -366,7 +422,17 @@ with st.sidebar:
     if st.session_state.get("_msg_act"):
         st.caption(st.session_state.pop("_msg_act"))
     if len(meta) and "cargado_en" in meta and meta["cargado_en"].notna().any():
-        st.caption(f"Datos al **{pd.Timestamp(meta['cargado_en'].max()):%d/%m · %H:%M}**")
+        _ts = pd.Timestamp(meta['cargado_en'].max())
+        if os.name != "nt":                       # el servidor en linea guarda la hora en UTC: Lima = UTC - 5
+            _ts = _ts - pd.Timedelta(hours=5)
+        st.caption(f"Datos al **{_ts:%d/%m · %H:%M}**")
+    if AUTO is not None:
+        if AUTO["corriendo"]:
+            st.caption("🔄 Bajando datos nuevos de Pedregal… (se actualiza solo cada hora)")
+        elif AUTO["ok"] is False:
+            st.caption(f"⚠️ La actualización automática falló: {AUTO['msg']}")
+        else:
+            st.caption("🔄 Se actualiza solo cada hora")
     st.toggle("☀️ Fondo claro", key="claro", help="Cambia toda la plataforma a fondo blanco")
 
 t_brot = tabla_de(EVALUACIONES[0])

@@ -11,6 +11,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141112;--card:#1e1a1b;--fg:#f2ece9;--mut:#a89f9b;--line:#332c2d;--acc:#ff5a6e;--chip:#2a2425;--track:#2c2627;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#141112;--card:#1e1a1b;--fg:#f2ece9;--mut:#a89f9b;--line:#332c2d;--acc:#ff5a6e;--chip:#2a2425;--track:#2c2627;color-scheme:dark}
 body{background:var(--bg);color:var(--fg);font-family:var(--ff)}
+[hidden]{display:none!important}   /* dentro de la plataforma no hay estilos base: sin esto las dos pestañas se ven juntas */
 .w{max-width:1480px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
 .tema{position:absolute;top:10px;right:12px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.12);color:#fff;border-radius:99px;padding:3px 11px;font:600 .74rem var(--ff);cursor:pointer}
 .hd{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:18px;color:#fff;border-radius:14px;

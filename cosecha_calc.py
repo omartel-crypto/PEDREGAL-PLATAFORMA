@@ -147,14 +147,15 @@ def peso(df):
     r = pd.to_numeric(df.get("medidas-longitud-de-raquis"), errors="coerce")
     if p.notna().sum() == 0:
         return None
+    pb = (p / b.where(b > 0) * 1000)                   # peso de baya de CADA muestra (g) = peso racimo / n de bayas
     out = {"muestras": int(p.notna().sum()), "peso": p.mean(), "bayas": b.mean(),
-           "peso_baya_g": (p.mean() / b.mean() * 1000) if b.mean() else None,
+           "peso_baya_g": pb.mean() if pb.notna().any() else None,   # promedio de las muestras (como el reporte diario)
            "raquis": r.mean() if r is not None else None, "p_min": p.min(), "p_max": p.max()}
-    d = df.assign(_p=p, _b=b)
+    d = df.assign(_p=p, _b=b, _pb=pb)
     for clave, col in (("por_calibre", "datos-generales-calibre"), ("por_tipo", "medidas-tipo-de-racimo")):
         if col in d:
-            t = d.groupby(col).agg(peso=("_p", "mean"), bayas=("_b", "mean"), n=("_p", "count")).reset_index()
-            t["peso_baya_g"] = t["peso"] / t["bayas"] * 1000
+            t = d.groupby(col).agg(peso=("_p", "mean"), bayas=("_b", "mean"), peso_baya_g=("_pb", "mean"),
+                                   n=("_p", "count")).reset_index()
             out[clave] = t.rename(columns={col: "grupo"}).sort_values("n", ascending=False)
     return out
 

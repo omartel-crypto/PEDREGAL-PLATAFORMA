@@ -71,6 +71,8 @@ def _auto_actualizar():
             env = dict(os.environ, PEDREGAL_DB=tmp)
             r = subprocess.run([sys.executable, "4_extraer_tablas.py"], env=env, capture_output=True, text=True, timeout=1800)
             txt = (r.stdout or "") + (r.stderr or "")
+            est["log"] = "\n".join(l for l in txt.splitlines() if l.startswith(("===", "  OK", "  !!", "!!", "Tablas", "Conexi", "  ->"))
+                                    or "rror" in l)[-3000:]
             ok = txt.count("  OK ")
             if ok and os.path.exists(tmp):
                 os.replace(tmp, DB)               # cambio instantaneo a la base nueva
@@ -80,6 +82,8 @@ def _auto_actualizar():
         except Exception as e:
             est["ok"], est["msg"] = False, str(e)[:160]
         finally:
+            import datetime as _dt
+            est["hora"] = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=5)).strftime("%d/%m %H:%M")
             est["ultimo"] = time.time()
             est["corriendo"] = False
             if os.path.exists(tmp):
@@ -426,11 +430,16 @@ with st.sidebar:
         st.caption(f"Datos al **{_ts:%d/%m · %H:%M}**")
     if AUTO is not None:
         if AUTO["corriendo"]:
-            st.caption("🔄 Bajando datos nuevos de Pedregal… (se actualiza solo cada hora)")
+            st.caption("🔄 Bajando datos nuevos de Pedregal… (2 a 5 min, luego recarga)")
         elif AUTO["ok"] is False:
-            st.caption(f"⚠️ La actualización automática falló: {AUTO['msg']}")
+            st.caption(f"⚠️ Actualización automática del {AUTO.get('hora', '')} falló: {AUTO['msg']}")
+        elif AUTO["ok"]:
+            st.caption(f"✅ Actualizado solo el {AUTO.get('hora', '')} ({AUTO['msg']}) · cada hora")
         else:
             st.caption("🔄 Se actualiza solo cada hora")
+        if AUTO.get("log"):
+            with st.expander("Detalle de la última actualización"):
+                st.code(AUTO["log"], language=None)
     st.toggle("☀️ Fondo claro", key="claro", help="Cambia toda la plataforma a fondo blanco")
 
 t_brot = tabla_de(EVALUACIONES[0])

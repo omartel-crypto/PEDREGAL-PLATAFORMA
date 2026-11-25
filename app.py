@@ -218,7 +218,7 @@ def con():
 
 
 @st.cache_data(ttl=300)
-def tablas_cargadas():
+def tablas_cargadas(version=None):
     if not os.path.exists(DB):
         return pd.DataFrame(columns=["tabla", "col_fecha", "desde", "filas", "cargado_en"])
     with con() as c:
@@ -257,8 +257,13 @@ def adivinar_union(cols):
     return None
 
 
+def _ver():
+    """Fecha de modificacion de la base: los caches se renuevan apenas llega una actualizacion."""
+    return os.path.getmtime(DB) if os.path.exists(DB) else 0
+
+
 @st.cache_data(ttl=300)
-def mapeo(tabla, col):
+def mapeo(tabla, col, version=None):
     with con() as c:
         vals = c.execute(f'SELECT "{col}" AS v, count(*) AS n FROM "{tabla}" GROUP BY 1').df()
     res = vals["v"].map(union().resolver)
@@ -277,7 +282,7 @@ def brot_resumen(tabla, col_union, col_fecha):
     sel = ", ".join(f'"{c}"' for c in dict.fromkeys(lista))
     with con() as c:
         datos = c.execute(f'SELECT {sel} FROM "{tabla}"').df()
-    return br.resumir(datos, col_union, col_fecha, cols_e, mapeo(tabla, col_union))
+    return br.resumir(datos, col_union, col_fecha, cols_e, mapeo(tabla, col_union, _ver()))
 
 
 @st.cache_data(ttl=300)
@@ -363,7 +368,7 @@ if len(mae):
 else:
     props["jefe_campo"] = props["patron"] = props["fecha_plantacion"] = None
 VAR_CU = dict(zip(props["cuartel_id"], props["variedad"]))
-meta = tablas_cargadas()
+meta = tablas_cargadas(_ver())
 
 
 def tabla_de(ev):
@@ -458,7 +463,7 @@ conteo = {}
 color_por = "% Brotación" if (st.session_state.get("vista") == "brotacion" and brot) else "Variedad"
 vc.css(st.session_state.get("claro", False))
 vc.configurar({"props": props, "MAE": MAE, "VARIEDAD_NOMBRE": VARIEDAD_NOMBRE, "VARIEDAD_COLOR": VARIEDAD_COLOR, "geo": geo,
-               "mapeo": mapeo, "VAR_CU": VAR_CU})
+               "mapeo": lambda t, c: mapeo(t, c, _ver()), "VAR_CU": VAR_CU})
 COS = vc.estado_lotes()          # lote -> inicio, ultimo dia, dias y estado de cosecha
 if modo == "Cosecha":
     color_por = "Cosecha"
@@ -813,7 +818,7 @@ def resumen_eval(ev, lote_id, cuartel_id, nivel):
     if t:
         col = adivinar_union(columnas(t))
         if col:
-            mp = mapeo(t, col)
+            mp = mapeo(t, col, _ver())
             n = mp.loc[(mp["lote_id"] == lote_id) if nivel == "Lote" else (mp["cuartel_id"] == cuartel_id), "n"].sum()
             return f"{n:,}", "registros"
     return None, None
@@ -945,7 +950,7 @@ def detalle_generico(ev, lote_id, cuartel_id, nivel):
     if not col:
         st.info("No encontré una columna de lote/cuartel en esta evaluación.")
         return
-    mp = mapeo(t, col)
+    mp = mapeo(t, col, _ver())
     filtro = (mp["lote_id"] == lote_id) if nivel == "Lote" else (mp["cuartel_id"] == cuartel_id)
     df = registros(t, col, list(mp.loc[filtro, "v"]))
     if df.empty:

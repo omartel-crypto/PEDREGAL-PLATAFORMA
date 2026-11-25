@@ -422,9 +422,7 @@ with st.sidebar:
     if st.session_state.get("_msg_act"):
         st.caption(st.session_state.pop("_msg_act"))
     if len(meta) and "cargado_en" in meta and meta["cargado_en"].notna().any():
-        _ts = pd.Timestamp(meta['cargado_en'].max())
-        if os.name != "nt":                       # el servidor en linea guarda la hora en UTC: Lima = UTC - 5
-            _ts = _ts - pd.Timedelta(hours=5)
+        _ts = pd.Timestamp(meta['cargado_en'].max())      # el extractor guarda la hora de Lima
         st.caption(f"Datos al **{_ts:%d/%m · %H:%M}**")
     if AUTO is not None:
         if AUTO["corriendo"]:

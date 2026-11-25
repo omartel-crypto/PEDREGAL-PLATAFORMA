@@ -30,7 +30,8 @@ def buscar_excel(carpeta_base="."):
     for nombre in ("maestro", "Maestro", "MAESTRO"):
         archivos = [a for a in glob.glob(os.path.join(carpeta_base, nombre, "*.xlsx"))
                     if not os.path.basename(a).startswith("~$")
-                    and not os.path.basename(a).lower().startswith("jabas")]   # ese es el de cosecha
+                    and not os.path.basename(a).lower().startswith(("jabas", "estado_lotes", "grupos_defectos"))]
+        # jabas_diarias, estado_lotes y grupos_defectos son otros Excel de la plataforma, no el maestro
         if archivos:
             return max(archivos, key=os.path.getmtime)
     return None

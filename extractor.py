@@ -107,7 +107,8 @@ def extraer(cur, db, base, tabla, corto, desde, col_fecha=None, dias_recarga=Non
     db.execute("""CREATE TABLE IF NOT EXISTS _cargas(tabla VARCHAR, tabla_athena VARCHAR, col_fecha VARCHAR,
                   desde VARCHAR, filas BIGINT, segundos DOUBLE, cargado_en TIMESTAMP)""")
     db.execute("DELETE FROM _cargas WHERE tabla = ?", [corto])
-    db.execute("INSERT INTO _cargas VALUES (?,?,?,?,?,?,now())", [corto, tabla, fcol, desde, filas_tabla, seg])
+    hora_lima = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) - dt.timedelta(hours=5)   # Lima = UTC-5 (sin horario de verano)
+    db.execute("INSERT INTO _cargas VALUES (?,?,?,?,?,?,?)", [corto, tabla, fcol, desde, filas_tabla, seg, hora_lima])
     return {"tabla": corto, "ok": True, "modo": "incremental" if incremental else "completa",
             "desde": corte, "traidas": total, "filas": filas_tabla, "segundos": seg,
             "col_fecha": f"{fcol} [{ftipo}]", "columnas": cols}

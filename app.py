@@ -26,7 +26,16 @@ from union_mapa import UnionMapa
 DB = os.path.join("datos", "pedregal.duckdb")
 # En linea (Streamlit Cloud) la base viaja comprimida (.gz) porque GitHub no acepta archivos de mas de 25 MB por la web
 _GZ = DB + ".gz"
-if os.path.exists(_GZ) and (not os.path.exists(DB) or os.path.getmtime(_GZ) > os.path.getmtime(DB)):
+def _db_sana():
+    try:
+        with duckdb.connect(DB, read_only=True) as _c:
+            _c.execute("SELECT count(*) FROM information_schema.tables").fetchone()
+        return True
+    except Exception:
+        return False
+
+
+if os.path.exists(_GZ) and (not os.path.exists(DB) or os.path.getmtime(_GZ) > os.path.getmtime(DB) or not _db_sana()):
     import gzip
     import shutil
     os.makedirs(os.path.dirname(DB), exist_ok=True)
@@ -59,6 +68,12 @@ def bajar_release():
         with gzip.open(tmp + ".gz", "rb") as g, open(tmp, "wb") as f:
             shutil.copyfileobj(g, f)
         os.remove(tmp + ".gz")
+        try:                                     # se prueba antes de usarla: si no abre, se queda la actual
+            with duckdb.connect(tmp, read_only=True) as c:
+                c.execute("SELECT count(*) FROM information_schema.tables").fetchone()
+        except Exception:
+            os.remove(tmp)
+            return None
         os.replace(tmp, DB)
         os.utime(DB, (t, t))                     # la base queda con la hora en que GitHub la preparo
         return t

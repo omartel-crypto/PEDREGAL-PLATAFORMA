@@ -1,6 +1,6 @@
 pandas
 openpyxl
-duckdb>=2.0
+duckdb==2.0.1
 streamlit>=1.40
 folium>=0.15
 streamlit-folium>=0.20

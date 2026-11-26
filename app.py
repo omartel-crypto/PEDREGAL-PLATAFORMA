@@ -35,7 +35,7 @@ def _db_sana():
         return False
 
 
-if os.path.exists(_GZ) and (not os.path.exists(DB) or os.path.getmtime(_GZ) > os.path.getmtime(DB) or not _db_sana()):
+if os.path.exists(_GZ) and (not os.path.exists(DB) or not _db_sana()):   # solo si falta o esta danada
     import gzip
     import shutil
     os.makedirs(os.path.dirname(DB), exist_ok=True)

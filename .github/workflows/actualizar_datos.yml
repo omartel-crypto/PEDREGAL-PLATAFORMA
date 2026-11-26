@@ -52,6 +52,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python -c "import gzip,shutil; shutil.copyfileobj(open('datos/pedregal.duckdb','rb'), gzip.open('pedregal.duckdb.gz','wb',9))"
+          python -c "import gzip,shutil; g=gzip.open('pedregal.duckdb.gz','wb',9); shutil.copyfileobj(open('datos/pedregal.duckdb','rb'), g); g.close()"
           gh release view datos >/dev/null 2>&1 || gh release create datos --title "Datos Pedregal" --notes "Base que se actualiza sola cada hora"
           gh release upload datos pedregal.duckdb.gz --clobber

@@ -32,6 +32,7 @@ if os.path.exists(_GZ) and (not os.path.exists(DB) or os.path.getmtime(_GZ) > os
     os.makedirs(os.path.dirname(DB), exist_ok=True)
     with gzip.open(_GZ, "rb") as _g, open(DB, "wb") as _f:
         shutil.copyfileobj(_g, _f)
+    os.utime(DB, (1, 1))     # base "vieja" a proposito: asi la de la tarea de GitHub siempre se ve mas nueva y se baja
 # GitHub (tarea programada cada hora) deja la base lista aqui; la app en linea la baja al despertar
 RELEASE = "https://github.com/omartel-crypto/PEDREGAL-PLATAFORMA/releases/download/datos/pedregal.duckdb.gz"
 

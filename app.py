@@ -32,12 +32,53 @@ if os.path.exists(_GZ) and (not os.path.exists(DB) or os.path.getmtime(_GZ) > os
     os.makedirs(os.path.dirname(DB), exist_ok=True)
     with gzip.open(_GZ, "rb") as _g, open(DB, "wb") as _f:
         shutil.copyfileobj(_g, _f)
+# GitHub (tarea programada cada hora) deja la base lista aqui; la app en linea la baja al despertar
+RELEASE = "https://github.com/omartel-crypto/PEDREGAL-PLATAFORMA/releases/download/datos/pedregal.duckdb.gz"
+
+
+def bajar_release():
+    """Solo en linea: si GitHub tiene una base mas nueva que la actual, la baja (unos segundos).
+    Devuelve la hora (timestamp) en que GitHub preparo esa base, o None si no hay."""
+    if os.name == "nt":
+        return None
+    import email.utils
+    import gzip
+    import shutil
+    import time
+    import urllib.request
+    try:
+        with urllib.request.urlopen(urllib.request.Request(RELEASE, method="HEAD"), timeout=15) as r:
+            lm = r.headers.get("Last-Modified")
+        t = email.utils.parsedate_to_datetime(lm).timestamp() if lm else time.time()
+        if os.path.exists(DB) and os.path.getmtime(DB) >= t - 60:
+            return t
+        tmp = DB + ".rel"
+        with urllib.request.urlopen(RELEASE, timeout=90) as r, open(tmp + ".gz", "wb") as f:
+            shutil.copyfileobj(r, f)
+        with gzip.open(tmp + ".gz", "rb") as g, open(tmp, "wb") as f:
+            shutil.copyfileobj(g, f)
+        os.remove(tmp + ".gz")
+        os.replace(tmp, DB)
+        os.utime(DB, (t, t))                     # la base queda con la hora en que GitHub la preparo
+        return t
+    except Exception:
+        return None
+
+
 GEO = "cuarteles_pedregal.geojson"
 ROJO = "#d71920"      # rojo Pedregal
 AZUL = "#7aa2ff"      # azul de % Brotacion (claro para el fondo oscuro)
 GRIS = "#a89c97"
 
 st.set_page_config(page_title="El Pedregal", page_icon="🍇", layout="wide")
+
+
+@st.cache_resource(show_spinner="Trayendo los datos más recientes…")
+def _inicio():
+    return bajar_release()                       # una vez al despertar la app
+
+
+_inicio()
 
 
 # ---------------------------------------------------------------- actualizacion automatica (solo en linea)
@@ -66,6 +107,10 @@ def _auto_actualizar():
         import shutil
         tmp = DB + ".nuevo"
         try:
+            t_rel = bajar_release()
+            if t_rel and time.time() - t_rel < 3300:
+                est["ok"], est["msg"] = True, "datos de la tarea de GitHub"
+                return                            # GitHub ya la dejo al dia: no hace falta bajar de Athena
             if os.path.exists(DB):
                 shutil.copyfile(DB, tmp)          # se trabaja en una copia: la plataforma sigue leyendo la actual
             env = dict(os.environ, PEDREGAL_DB=tmp)

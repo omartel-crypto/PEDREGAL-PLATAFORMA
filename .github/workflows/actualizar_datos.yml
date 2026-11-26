@@ -1,0 +1,57 @@
+# Tarea programada de GitHub: cada hora (6 am a 8 pm, hora de Lima) baja los datos nuevos de Pedregal
+# y deja la base lista en "Releases > datos". La plataforma en linea la toma al despertar y cada hora.
+name: Actualizar datos Pedregal
+
+on:
+  schedule:
+    - cron: "7 11-23,0,1 * * *"     # UTC = Lima + 5 h  ->  cada hora de 6:07 am a 8:07 pm
+  workflow_dispatch:                # boton "Run workflow" para correrla a mano
+
+permissions:
+  contents: write
+
+concurrency:
+  group: datos
+  cancel-in-progress: false
+
+jobs:
+  datos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar
+        run: pip install pyathena duckdb pandas openpyxl
+
+      - name: Base anterior (asi solo baja los ultimos dias)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p datos
+          gh release download datos -p pedregal.duckdb.gz -D datos --clobber || echo "primera vez: uso la base del repositorio"
+          python -c "import gzip,shutil; shutil.copyfileobj(gzip.open('datos/pedregal.duckdb.gz','rb'), open('datos/pedregal.duckdb','wb'))"
+
+      - name: Bajar de Pedregal (Athena)
+        env:
+          ATHENA_KEY: ${{ secrets.ATHENA_KEY }}
+          ATHENA_SECRET: ${{ secrets.ATHENA_SECRET }}
+          ATHENA_REGION: ${{ secrets.ATHENA_REGION }}
+          ATHENA_S3: ${{ secrets.ATHENA_S3 }}
+          ATHENA_WORKGROUP: ${{ secrets.ATHENA_WORKGROUP }}
+        run: |
+          python 4_extraer_tablas.py
+          grep -E "  OK|!!" resumen_tablas.txt || true
+          grep -q "  OK" resumen_tablas.txt
+
+      - name: Publicar la base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -c "import gzip,shutil; shutil.copyfileobj(open('datos/pedregal.duckdb','rb'), gzip.open('pedregal.duckdb.gz','wb',9))"
+          gh release view datos >/dev/null 2>&1 || gh release create datos --title "Datos Pedregal" --notes "Base que se actualiza sola cada hora"
+          gh release upload datos pedregal.duckdb.gz --clobber
